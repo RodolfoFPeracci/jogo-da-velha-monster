@@ -557,18 +557,19 @@
     /* ── EXIT BUTTON ──────────────────────────────── */
     .btn-exit {
       display: flex; align-items: center; gap: 8px;
-      padding: 9px 20px; border-radius: 50px;
-      border: 2px solid rgba(255,255,255,.15);
-      background: rgba(10,20,65,.82); color: rgba(255,255,255,.6);
-      font-family: 'Fredoka One', cursive; font-size: .88rem;
+      padding: 10px 20px; border-radius: 50px;
+      border: 2px solid rgba(255,61,154,.5);
+      background: rgba(255,61,154,.12); color: rgba(255,255,255,.9);
+      font-family: 'Fredoka One', cursive; font-size: .92rem;
       cursor: pointer; transition: all .25s cubic-bezier(.34,1.56,.64,1);
-      width: 100%;
-      justify-content: center;
+      width: 100%; justify-content: center;
+      box-shadow: 0 0 12px rgba(255,61,154,.15);
     }
     .btn-exit:hover {
       border-color: var(--pink); color: var(--pink);
-      background: rgba(255,61,154,.1);
+      background: rgba(255,61,154,.22);
       transform: translateY(-2px);
+      box-shadow: 0 0 20px rgba(255,61,154,.35);
     }
 
     /* ── MISC ─────────────────────────────────────── */
