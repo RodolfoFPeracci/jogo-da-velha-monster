@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Jogo da Velha Monstro</title>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     :root {
       --cyan:   #00d4e8;
@@ -492,6 +493,67 @@
       text-transform: uppercase; letter-spacing: 1.5px;
     }
 
+    /* ── ONLINE SUB-SCREEN ────────────────────────── */
+    .modal-screen.hidden { display: none; }
+    .btn-back {
+      background: none; border: none; color: rgba(255,255,255,.45);
+      font-family: 'Fredoka One', cursive; font-size: .9rem; cursor: pointer;
+      padding: 0 0 18px 0; display: block; transition: color .2s;
+    }
+    .btn-back:hover { color: #fff; }
+    .online-options { display: flex; gap: 10px; margin-bottom: 10px; }
+    .btn-online-opt {
+      flex: 1; padding: 12px; border-radius: 16px;
+      border: 2px solid rgba(255,255,255,.15);
+      background: rgba(10,20,65,.88); color: rgba(255,255,255,.7);
+      font-family: 'Fredoka One', cursive; font-size: 1rem; cursor: pointer;
+      transition: all .25s cubic-bezier(.34,1.56,.64,1);
+    }
+    .btn-online-opt:hover { border-color: var(--purple); color: #fff; background: rgba(123,47,255,.18); }
+    .btn-online-opt.active { border-color: var(--purple); background: rgba(123,47,255,.22); color: #fff; box-shadow: 0 0 16px rgba(123,47,255,.4); }
+    .online-panel { animation: popFrom .3s cubic-bezier(.34,1.56,.64,1); margin-top: 4px; }
+    .online-panel.hidden { display: none; }
+    .room-code-box {
+      background: rgba(0,0,0,.3); border-radius: 14px; padding: 18px 14px;
+      text-align: center; margin-top: 10px;
+    }
+    .room-code-label { font-size: .7rem; color: rgba(255,255,255,.4); letter-spacing: 3px; text-transform: uppercase; font-family: 'Nunito', sans-serif; margin-bottom: 8px; }
+    .room-code-val {
+      font-size: 2.4rem; letter-spacing: 6px; color: var(--cyan);
+      cursor: pointer; user-select: all; transition: transform .15s;
+      display: block;
+    }
+    .room-code-val:hover { transform: scale(1.06); }
+    .room-code-hint { font-size: .72rem; color: rgba(255,255,255,.35); font-family: 'Nunito', sans-serif; margin-top: 6px; }
+    .online-status {
+      font-size: .85rem; color: var(--yellow); margin-top: 12px;
+      font-family: 'Nunito', sans-serif; font-weight: 700; text-align: center; min-height: 22px;
+    }
+    .online-status.ok   { color: var(--lime); }
+    .online-status.err  { color: var(--pink); }
+    .join-input {
+      width: 100%; padding: 12px; font-size: 1.5rem; text-align: center;
+      text-transform: uppercase; letter-spacing: 4px;
+      border-radius: 12px; border: 2px solid rgba(255,255,255,.2);
+      background: rgba(0,0,0,.3); color: #fff;
+      font-family: 'Fredoka One', cursive; outline: none; margin-top: 10px;
+      transition: border-color .2s;
+    }
+    .join-input:focus { border-color: var(--purple); }
+    .join-input::placeholder { color: rgba(255,255,255,.25); font-size: 1rem; letter-spacing: 2px; }
+    .btn-join-enter {
+      width: 100%; margin-top: 12px; padding: 12px;
+      background: linear-gradient(135deg, var(--purple), var(--cyan));
+      border: none; border-radius: 50px; color: #fff;
+      font-family: 'Fredoka One', cursive; font-size: 1rem; cursor: pointer;
+      transition: all .25s cubic-bezier(.34,1.56,.64,1);
+      box-shadow: 0 6px 24px rgba(123,47,255,.35);
+    }
+    .btn-join-enter:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 10px 32px rgba(123,47,255,.55); }
+    .btn-join-enter:disabled { opacity: .4; cursor: default; transform: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-spin { display: inline-block; animation: spin 1s linear infinite; }
+
     /* ── MISC ─────────────────────────────────────── */
     @media(max-width:400px){
       .score-card{padding:10px 5px}
@@ -581,24 +643,65 @@
 <!-- Mode Select Modal -->
 <div class="mode-modal-backdrop" id="mode-modal">
   <div class="mode-modal">
-    <div class="mode-modal-title">👾 Jogo da Velha<br>Monstro</div>
-    <p class="mode-modal-sub">Escolha o modo de jogo</p>
-    <div class="mode-cards">
-      <div class="mode-card local" onclick="selectMode('2p')">
-        <span class="mode-card-icon">👥</span>
-        <div class="mode-card-info">
-          <span class="mode-card-name">2 Jogadores Local</span>
-          <span class="mode-card-desc">Jogue com um amigo no mesmo dispositivo</span>
+
+    <!-- Tela 1: Seleção de modo -->
+    <div id="modal-screen-1" class="modal-screen">
+      <div class="mode-modal-title">👾 Jogo da Velha<br>Monstro</div>
+      <p class="mode-modal-sub">Escolha o modo de jogo</p>
+      <div class="mode-cards">
+        <div class="mode-card local" onclick="selectMode('2p')">
+          <span class="mode-card-icon">👥</span>
+          <div class="mode-card-info">
+            <span class="mode-card-name">2 Jogadores Local</span>
+            <span class="mode-card-desc">Jogue com um amigo no mesmo dispositivo</span>
+          </div>
         </div>
-      </div>
-      <div class="mode-card cpu" onclick="selectMode('cpu')">
-        <span class="mode-card-icon">🤖</span>
-        <div class="mode-card-info">
-          <span class="mode-card-name">Jogador vs CPU</span>
-          <span class="mode-card-desc">Desafie a inteligência artificial</span>
+        <div class="mode-card cpu" onclick="selectMode('cpu')">
+          <span class="mode-card-icon">🤖</span>
+          <div class="mode-card-info">
+            <span class="mode-card-name">Jogador vs CPU</span>
+            <span class="mode-card-desc">Desafie a inteligência artificial</span>
+          </div>
+        </div>
+        <div class="mode-card" style="--card-color:#aaee00;--card-glow:rgba(170,238,0,.35)" onclick="selectMode('online')">
+          <span class="mode-card-icon">🌍</span>
+          <div class="mode-card-info">
+            <span class="mode-card-name">2 Jogadores Online</span>
+            <span class="mode-card-desc">Jogue contra alguém em qualquer lugar do mundo</span>
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- Tela 2: Opções Online -->
+    <div id="modal-screen-2" class="modal-screen hidden">
+      <button class="btn-back" onclick="showModalScreen(1)">← Voltar</button>
+      <div class="mode-modal-title" style="font-size:clamp(1.4rem,4vw,2rem);margin-bottom:6px">🌍 Jogo Online</div>
+      <p class="mode-modal-sub" style="margin-bottom:20px">Crie ou entre em uma sala</p>
+
+      <div class="online-options">
+        <button class="btn-online-opt" id="btn-host" onclick="showHostPanel()">🏠 Criar Sala</button>
+        <button class="btn-online-opt" id="btn-guest" onclick="showJoinPanel()">🔗 Entrar em Sala</button>
+      </div>
+
+      <!-- Painel: Criar Sala -->
+      <div id="panel-host" class="online-panel hidden">
+        <div class="room-code-box">
+          <div class="room-code-label">Código da Sala</div>
+          <span class="room-code-val" id="room-code-display" title="Clique para copiar" onclick="copyRoomCode()">------</span>
+          <div class="room-code-hint">Clique no código para copiar · Compartilhe com seu amigo</div>
+        </div>
+        <div class="online-status" id="host-status">⚙️ Gerando sala…</div>
+      </div>
+
+      <!-- Painel: Entrar em Sala -->
+      <div id="panel-join" class="online-panel hidden">
+        <input class="join-input" id="join-code-input" maxlength="6" placeholder="Digite o código" oninput="onJoinInput(this)" />
+        <button class="btn-join-enter" id="btn-join-enter" onclick="joinRoom()" disabled>Entrar na Sala 🚀</button>
+        <div class="online-status" id="join-status"></div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -763,14 +866,15 @@ const WINS     = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6
 //  STATE
 // ══════════════════════════════════════
 const G = {
-  board:   Array(9).fill(null),
-  cur:     1,
-  mode:    '2p',
-  diff:    'impossible',
-  scores:  {p1:0, dr:0, p2:0},
-  over:    false,
-  busy:    false,
-  p:       { 1:{em:'👾',col:'#00d4e8'}, 2:{em:'🐙',col:'#ff3d9a'} }
+  board:      Array(9).fill(null),
+  cur:        1,
+  mode:       '2p',
+  diff:       'impossible',
+  scores:     {p1:0, dr:0, p2:0},
+  over:       false,
+  busy:       false,
+  onlineRole: 1,
+  p:          { 1:{em:'👾',col:'#00d4e8'}, 2:{em:'🐙',col:'#ff3d9a'} }
 };
 let picTarget = 1;
 let particles = [], raf = null;
@@ -807,7 +911,9 @@ function checkBoard(b) {
 
 function onCell(i) {
   if (G.over || G.board[i] || G.busy) return;
+  if (G.mode === 'online' && G.cur !== G.onlineRole) return;
   place(i, G.cur);
+  if (G.mode === 'online' && ONLINE.conn) ONLINE.conn.send({ type: 'move', index: i });
   const r = checkBoard(G.board);
   if (r) { endGame(r); return; }
   switchTurn();
@@ -846,7 +952,7 @@ function endGame(r) {
   }
 }
 
-function nextRound() {
+function doNextRound() {
   G.board = Array(9).fill(null);
   G.cur   = 1;
   G.over  = false;
@@ -856,6 +962,11 @@ function nextRound() {
   buildBoard();
   updateTurn();
   updateCards();
+}
+
+function nextRound() {
+  if (G.mode === 'online' && ONLINE.conn) ONLINE.conn.send({ type: 'restart' });
+  doNextRound();
 }
 
 // ══════════════════════════════════════
@@ -937,9 +1048,14 @@ function minimax(b,depth,maxing,al,be) {
 // ══════════════════════════════════════
 function updateTurn() {
   const p=G.p[G.cur];
-  const name=G.cur===1?'Jogador 1':(G.mode==='cpu'?'CPU':'Jogador 2');
+  let name;
+  if (G.mode === 'online') {
+    name = G.cur === G.onlineRole ? 'Você' : 'Oponente';
+  } else {
+    name = G.cur===1 ? 'Jogador 1' : (G.mode==='cpu' ? 'CPU' : 'Jogador 2');
+  }
   document.getElementById('turn-em').textContent=p.em;
-  document.getElementById('turn-txt').textContent=`Vez do ${name}!`;
+  document.getElementById('turn-txt').textContent=`Vez d${name==='Você'?'e ':'o '}${name}!`;
 }
 
 function showThinking(on) {
@@ -1129,9 +1245,178 @@ document.getElementById('em-p2').addEventListener('click',()=>{ if(G.mode!=='cpu
 document.getElementById('picker').addEventListener('click',function(e){ if(e.target===this) confirmPicker(); });
 
 // ══════════════════════════════════════
+//  ONLINE MULTIPLAYER (PeerJS)
+// ══════════════════════════════════════
+const ONLINE = { peer: null, conn: null, role: null, code: null };
+
+function genCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:6}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+}
+
+function showModalScreen(n) {
+  document.getElementById('modal-screen-1').classList.toggle('hidden', n !== 1);
+  document.getElementById('modal-screen-2').classList.toggle('hidden', n !== 2);
+  if (n === 1) destroyPeer();
+}
+
+function showHostPanel() {
+  document.getElementById('btn-host').classList.add('active');
+  document.getElementById('btn-guest').classList.remove('active');
+  document.getElementById('panel-host').classList.remove('hidden');
+  document.getElementById('panel-join').classList.add('hidden');
+  hostRoom();
+}
+
+function showJoinPanel() {
+  document.getElementById('btn-guest').classList.add('active');
+  document.getElementById('btn-host').classList.remove('active');
+  document.getElementById('panel-join').classList.remove('hidden');
+  document.getElementById('panel-host').classList.add('hidden');
+  destroyPeer();
+  document.getElementById('join-code-input').value = '';
+  document.getElementById('join-status').textContent = '';
+  document.getElementById('btn-join-enter').disabled = true;
+}
+
+function onJoinInput(el) {
+  el.value = el.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+  document.getElementById('btn-join-enter').disabled = el.value.length !== 6;
+  document.getElementById('join-status').textContent = '';
+}
+
+function destroyPeer() {
+  if (ONLINE.peer) { try { ONLINE.peer.destroy(); } catch(e){} }
+  ONLINE.peer = null;
+  ONLINE.conn = null;
+  ONLINE.role = null;
+  ONLINE.code = null;
+}
+
+function hostRoom() {
+  destroyPeer();
+  const code = genCode();
+  ONLINE.code = code;
+  ONLINE.role = 'host';
+  document.getElementById('room-code-display').textContent = code;
+  document.getElementById('host-status').className = 'online-status';
+  document.getElementById('host-status').innerHTML = '<span class="loading-spin">⚙️</span> Conectando ao servidor…';
+
+  const peer = new Peer('monstro-' + code, { debug: 0 });
+  ONLINE.peer = peer;
+
+  peer.on('open', () => {
+    document.getElementById('host-status').innerHTML = '⏳ Aguardando oponente…';
+  });
+
+  peer.on('connection', conn => {
+    ONLINE.conn = conn;
+    document.getElementById('host-status').className = 'online-status ok';
+    document.getElementById('host-status').textContent = '✅ Oponente conectado! Iniciando…';
+    setupConn(conn);
+    setTimeout(() => {
+      document.getElementById('mode-modal').classList.add('hidden');
+      startOnlineGame(1);
+    }, 800);
+  });
+
+  peer.on('error', err => {
+    const msg = err.type === 'unavailable-id' ? 'Código já em uso, tente novamente.' : 'Erro: ' + err.message;
+    document.getElementById('host-status').className = 'online-status err';
+    document.getElementById('host-status').textContent = '❌ ' + msg;
+    if (err.type === 'unavailable-id') setTimeout(hostRoom, 800);
+  });
+}
+
+function joinRoom() {
+  const code = document.getElementById('join-code-input').value.trim().toUpperCase();
+  if (code.length !== 6) return;
+  destroyPeer();
+  ONLINE.code = code;
+  ONLINE.role = 'guest';
+
+  const statusEl = document.getElementById('join-status');
+  statusEl.className = 'online-status';
+  statusEl.innerHTML = '<span class="loading-spin">⚙️</span> Conectando…';
+  document.getElementById('btn-join-enter').disabled = true;
+
+  const peer = new Peer({ debug: 0 });
+  ONLINE.peer = peer;
+
+  peer.on('open', () => {
+    const conn = peer.connect('monstro-' + code, { reliable: true });
+    ONLINE.conn = conn;
+    setupConn(conn);
+
+    conn.on('open', () => {
+      statusEl.className = 'online-status ok';
+      statusEl.textContent = '✅ Conectado! Iniciando…';
+      setTimeout(() => {
+        document.getElementById('mode-modal').classList.add('hidden');
+        startOnlineGame(2);
+      }, 800);
+    });
+  });
+
+  peer.on('error', err => {
+    const msg = err.type === 'peer-unavailable' ? 'Sala não encontrada. Verifique o código.' : 'Erro: ' + err.message;
+    statusEl.className = 'online-status err';
+    statusEl.textContent = '❌ ' + msg;
+    document.getElementById('btn-join-enter').disabled = false;
+  });
+}
+
+function copyRoomCode() {
+  if (!ONLINE.code) return;
+  navigator.clipboard.writeText(ONLINE.code).then(() => {
+    const el = document.getElementById('room-code-display');
+    const orig = el.textContent;
+    el.textContent = 'COPIADO!';
+    setTimeout(() => { el.textContent = orig; }, 1200);
+  });
+}
+
+function setupConn(conn) {
+  conn.on('data', data => {
+    if (data.type === 'move') {
+      const opponent = G.onlineRole === 1 ? 2 : 1;
+      place(data.index, opponent);
+      const r = checkBoard(G.board);
+      if (r) { endGame(r); return; }
+      switchTurn();
+    } else if (data.type === 'restart') {
+      doNextRound();
+    }
+  });
+  conn.on('close', () => {
+    if (G.mode === 'online') {
+      alert('Oponente desconectou!');
+      G.mode = '2p';
+      document.getElementById('lbl-p2').textContent = 'Jogador 2';
+    }
+  });
+}
+
+function startOnlineGame(role) {
+  G.onlineRole = role;
+  G.mode = 'online';
+  G.scores = {p1:0, dr:0, p2:0};
+  syncScores();
+  document.getElementById('lbl-p2').textContent = role === 1 ? 'Oponente' : 'Oponente';
+  document.getElementById('btn-2p').classList.remove('active');
+  document.getElementById('btn-cpu').classList.remove('active');
+  document.getElementById('diff-row').classList.add('hidden');
+  doNextRound();
+}
+
+// ══════════════════════════════════════
 //  MODE SELECT MODAL
 // ══════════════════════════════════════
 function selectMode(m) {
+  if (m === 'online') {
+    showModalScreen(2);
+    return;
+  }
   document.getElementById('mode-modal').classList.add('hidden');
   setMode(m);
 }
