@@ -1128,10 +1128,15 @@ function doBubble(el) {
 // ══════════════════════════════════════
 function showWin(p) {
   const pl=G.p[p];
-  const name=p===1?'Jogador 1':(G.mode==='cpu'?'CPU':'Jogador 2');
+  let name;
+  if (G.mode==='online') name = p===G.onlineRole ? 'Você' : 'Oponente';
+  else name = p===1?'Jogador 1':(G.mode==='cpu'?'CPU':'Jogador 2');
   document.getElementById('v-emoji').textContent=pl.em;
   document.getElementById('v-title').textContent=`${name} Venceu!`;
-  document.getElementById('v-sub').textContent=p===1?'O monstro domina o tabuleiro! 🔥':'O desafiante prevalece! 💥';
+  const sub = G.mode==='online'
+    ? (p===G.onlineRole ? 'Você domina o tabuleiro! 🔥' : 'O oponente prevalece! 💥')
+    : (p===1 ? 'O monstro domina o tabuleiro! 🔥' : 'O desafiante prevalece! 💥');
+  document.getElementById('v-sub').textContent=sub;
   document.getElementById('v-overlay').classList.remove('hidden');
   launchParticles(pl.col);
   playVictorySound();
@@ -1276,6 +1281,7 @@ function showJoinPanel() {
   destroyPeer();
   document.getElementById('join-code-input').value = '';
   document.getElementById('join-status').textContent = '';
+  document.getElementById('join-status').className = 'online-status';
   document.getElementById('btn-join-enter').disabled = true;
 }
 
@@ -1293,75 +1299,129 @@ function destroyPeer() {
   ONLINE.code = null;
 }
 
+function setStatus(id, type, html) {
+  const el = document.getElementById(id);
+  el.className = 'online-status' + (type ? ' ' + type : '');
+  el.innerHTML = html;
+}
+
+// ── Funções que tratam os dados recebidos do oponente ──
+function onReceiveData(data) {
+  if (data.type === 'move') {
+    const opponent = G.onlineRole === 1 ? 2 : 1;
+    place(data.index, opponent);
+    const r = checkBoard(G.board);
+    if (r) { endGame(r); return; }
+    switchTurn();
+  } else if (data.type === 'restart') {
+    doNextRound();
+  }
+}
+
+function onPeerClose() {
+  if (G.mode !== 'online') return;
+  G.over = true;
+  document.getElementById('turn-em').textContent = '😢';
+  document.getElementById('turn-txt').textContent = 'Oponente desconectou!';
+}
+
+// ── Registra os listeners DENTRO do open (obrigatório no PeerJS) ──
+function bindConnEvents(conn) {
+  conn.on('open', () => {
+    conn.on('data', onReceiveData);
+    conn.on('close', onPeerClose);
+    conn.on('error', () => onPeerClose());
+  });
+}
+
+// ── HOST: cria sala e aguarda oponente ──
 function hostRoom() {
   destroyPeer();
   const code = genCode();
   ONLINE.code = code;
   ONLINE.role = 'host';
   document.getElementById('room-code-display').textContent = code;
-  document.getElementById('host-status').className = 'online-status';
-  document.getElementById('host-status').innerHTML = '<span class="loading-spin">⚙️</span> Conectando ao servidor…';
+  setStatus('host-status', '', '<span class="loading-spin">⚙️</span> Conectando ao servidor…');
 
-  const peer = new Peer('monstro-' + code, { debug: 0 });
+  const peer = new Peer('monstro-' + code);
   ONLINE.peer = peer;
 
+  // Timeout: servidor não respondeu
+  const serverTimeout = setTimeout(() => {
+    if (!peer.open) setStatus('host-status', 'err', '❌ Servidor indisponível. Tente novamente.');
+  }, 10000);
+
   peer.on('open', () => {
-    document.getElementById('host-status').innerHTML = '⏳ Aguardando oponente…';
+    clearTimeout(serverTimeout);
+    setStatus('host-status', '', '⏳ Aguardando oponente…');
   });
 
   peer.on('connection', conn => {
     ONLINE.conn = conn;
-    document.getElementById('host-status').className = 'online-status ok';
-    document.getElementById('host-status').textContent = '✅ Oponente conectado! Iniciando…';
-    setupConn(conn);
-    setTimeout(() => {
-      document.getElementById('mode-modal').classList.add('hidden');
-      startOnlineGame(1);
-    }, 800);
+    // Registra eventos antes do open disparar
+    bindConnEvents(conn);
+    conn.on('open', () => {
+      setStatus('host-status', 'ok', '✅ Oponente conectado! Iniciando…');
+      setTimeout(() => {
+        document.getElementById('mode-modal').classList.add('hidden');
+        startOnlineGame(1);
+      }, 700);
+    });
   });
 
   peer.on('error', err => {
-    const msg = err.type === 'unavailable-id' ? 'Código já em uso, tente novamente.' : 'Erro: ' + err.message;
-    document.getElementById('host-status').className = 'online-status err';
-    document.getElementById('host-status').textContent = '❌ ' + msg;
-    if (err.type === 'unavailable-id') setTimeout(hostRoom, 800);
+    clearTimeout(serverTimeout);
+    if (err.type === 'unavailable-id') {
+      setStatus('host-status', '', '<span class="loading-spin">⚙️</span> Gerando novo código…');
+      setTimeout(hostRoom, 500);
+    } else {
+      setStatus('host-status', 'err', '❌ Erro: ' + (err.message || err.type));
+    }
   });
 }
 
+// ── GUEST: entra em sala pelo código ──
 function joinRoom() {
   const code = document.getElementById('join-code-input').value.trim().toUpperCase();
   if (code.length !== 6) return;
   destroyPeer();
   ONLINE.code = code;
   ONLINE.role = 'guest';
-
-  const statusEl = document.getElementById('join-status');
-  statusEl.className = 'online-status';
-  statusEl.innerHTML = '<span class="loading-spin">⚙️</span> Conectando…';
   document.getElementById('btn-join-enter').disabled = true;
+  setStatus('join-status', '', '<span class="loading-spin">⚙️</span> Conectando…');
 
-  const peer = new Peer({ debug: 0 });
+  const peer = new Peer();
   ONLINE.peer = peer;
 
   peer.on('open', () => {
-    const conn = peer.connect('monstro-' + code, { reliable: true });
+    const conn = peer.connect('monstro-' + code, { reliable: true, serialization: 'json' });
     ONLINE.conn = conn;
-    setupConn(conn);
 
+    // Timeout: sala não encontrada ou host offline
+    const connTimeout = setTimeout(() => {
+      if (!conn.open) {
+        setStatus('join-status', 'err', '❌ Sala não encontrada. Verifique o código.');
+        document.getElementById('btn-join-enter').disabled = false;
+      }
+    }, 8000);
+
+    // Registra eventos antes do open disparar
+    bindConnEvents(conn);
     conn.on('open', () => {
-      statusEl.className = 'online-status ok';
-      statusEl.textContent = '✅ Conectado! Iniciando…';
+      clearTimeout(connTimeout);
+      setStatus('join-status', 'ok', '✅ Conectado! Iniciando…');
       setTimeout(() => {
         document.getElementById('mode-modal').classList.add('hidden');
         startOnlineGame(2);
-      }, 800);
+      }, 700);
     });
   });
 
   peer.on('error', err => {
-    const msg = err.type === 'peer-unavailable' ? 'Sala não encontrada. Verifique o código.' : 'Erro: ' + err.message;
-    statusEl.className = 'online-status err';
-    statusEl.textContent = '❌ ' + msg;
+    const msg = err.type === 'peer-unavailable'
+      ? 'Sala não encontrada. Verifique o código.'
+      : 'Erro: ' + (err.message || err.type);
+    setStatus('join-status', 'err', '❌ ' + msg);
     document.getElementById('btn-join-enter').disabled = false;
   });
 }
@@ -1373,27 +1433,10 @@ function copyRoomCode() {
     const orig = el.textContent;
     el.textContent = 'COPIADO!';
     setTimeout(() => { el.textContent = orig; }, 1200);
-  });
-}
-
-function setupConn(conn) {
-  conn.on('data', data => {
-    if (data.type === 'move') {
-      const opponent = G.onlineRole === 1 ? 2 : 1;
-      place(data.index, opponent);
-      const r = checkBoard(G.board);
-      if (r) { endGame(r); return; }
-      switchTurn();
-    } else if (data.type === 'restart') {
-      doNextRound();
-    }
-  });
-  conn.on('close', () => {
-    if (G.mode === 'online') {
-      alert('Oponente desconectou!');
-      G.mode = '2p';
-      document.getElementById('lbl-p2').textContent = 'Jogador 2';
-    }
+  }).catch(() => {
+    // fallback para ambientes sem clipboard API
+    const el = document.getElementById('room-code-display');
+    el.focus(); document.execCommand('selectAll');
   });
 }
 
@@ -1402,7 +1445,9 @@ function startOnlineGame(role) {
   G.mode = 'online';
   G.scores = {p1:0, dr:0, p2:0};
   syncScores();
-  document.getElementById('lbl-p2').textContent = role === 1 ? 'Oponente' : 'Oponente';
+  document.getElementById('lbl-p2').textContent = 'Oponente';
+  document.getElementById('em-p2').style.cursor = 'default';
+  document.getElementById('em-p2').title = '';
   document.getElementById('btn-2p').classList.remove('active');
   document.getElementById('btn-cpu').classList.remove('active');
   document.getElementById('diff-row').classList.add('hidden');
