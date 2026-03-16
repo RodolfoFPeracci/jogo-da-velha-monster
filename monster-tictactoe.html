@@ -436,6 +436,62 @@
     .btn-mute:hover { transform: scale(1.15); border-color: rgba(255,255,255,.5); }
     .btn-mute.muted { opacity: .55; }
 
+    /* ── MODE SELECT MODAL ────────────────────────── */
+    .mode-modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(8,16,55,.96);
+      backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+      z-index: 400; display: flex; align-items: center; justify-content: center;
+      animation: fadeIn .35s ease;
+    }
+    .mode-modal-backdrop.hidden { display: none; }
+    .mode-modal {
+      text-align: center; padding: 40px 32px;
+      animation: vPop .5s cubic-bezier(.34,1.56,.64,1);
+      max-width: 420px; width: 92%;
+    }
+    .mode-modal-title {
+      font-size: clamp(1.8rem,5vw,2.6rem);
+      background: linear-gradient(135deg, var(--cyan) 0%, var(--purple) 50%, var(--pink) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      margin-bottom: 8px;
+    }
+    .mode-modal-sub {
+      font-size: .8rem; color: rgba(255,255,255,.4);
+      letter-spacing: 3px; text-transform: uppercase;
+      font-family: 'Nunito', sans-serif; font-weight: 700;
+      margin-bottom: 36px;
+    }
+    .mode-cards {
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .mode-card {
+      background: rgba(10,20,65,.88);
+      border: 2px solid rgba(255,255,255,.15);
+      border-radius: 22px; padding: 24px 20px;
+      cursor: pointer;
+      transition: all .3s cubic-bezier(.34,1.56,.64,1);
+      display: flex; align-items: center; gap: 18px;
+      text-align: left;
+    }
+    .mode-card:hover {
+      transform: translateY(-4px) scale(1.02);
+      border-color: var(--card-color, var(--purple));
+      box-shadow: 0 0 28px var(--card-glow, rgba(123,47,255,.4));
+    }
+    .mode-card.local { --card-color: var(--cyan); --card-glow: rgba(0,212,232,.35); }
+    .mode-card.cpu   { --card-color: var(--pink); --card-glow: rgba(255,61,154,.35); }
+    .mode-card-icon { font-size: 3rem; flex-shrink: 0; }
+    .mode-card-info { flex: 1; }
+    .mode-card-name {
+      font-size: 1.25rem; color: #fff; display: block; margin-bottom: 4px;
+    }
+    .mode-card-desc {
+      font-size: .78rem; color: rgba(255,255,255,.45);
+      font-family: 'Nunito', sans-serif; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1.5px;
+    }
+
     /* ── MISC ─────────────────────────────────────── */
     @media(max-width:400px){
       .score-card{padding:10px 5px}
@@ -521,6 +577,30 @@
 
 <!-- Mute Button -->
 <button class="btn-mute" id="btn-mute" title="Alternar som" onclick="toggleMute()">🔊</button>
+
+<!-- Mode Select Modal -->
+<div class="mode-modal-backdrop" id="mode-modal">
+  <div class="mode-modal">
+    <div class="mode-modal-title">👾 Jogo da Velha<br>Monstro</div>
+    <p class="mode-modal-sub">Escolha o modo de jogo</p>
+    <div class="mode-cards">
+      <div class="mode-card local" onclick="selectMode('2p')">
+        <span class="mode-card-icon">👥</span>
+        <div class="mode-card-info">
+          <span class="mode-card-name">2 Jogadores Local</span>
+          <span class="mode-card-desc">Jogue com um amigo no mesmo dispositivo</span>
+        </div>
+      </div>
+      <div class="mode-card cpu" onclick="selectMode('cpu')">
+        <span class="mode-card-icon">🤖</span>
+        <div class="mode-card-info">
+          <span class="mode-card-name">Jogador vs CPU</span>
+          <span class="mode-card-desc">Desafie a inteligência artificial</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Emoji Picker -->
 <div class="picker-backdrop hidden" id="picker">
@@ -1047,6 +1127,14 @@ document.getElementById('em-p1').addEventListener('click',()=>openPicker(1));
 document.getElementById('em-p2').addEventListener('click',()=>{ if(G.mode!=='cpu') openPicker(2); });
 // close picker on backdrop click
 document.getElementById('picker').addEventListener('click',function(e){ if(e.target===this) confirmPicker(); });
+
+// ══════════════════════════════════════
+//  MODE SELECT MODAL
+// ══════════════════════════════════════
+function selectMode(m) {
+  document.getElementById('mode-modal').classList.add('hidden');
+  setMode(m);
+}
 
 // ══════════════════════════════════════
 //  BOOT
