@@ -604,7 +604,7 @@
   <div class="scoreboard">
     <div class="score-card p1-card active" id="card-p1">
       <span class="score-emoji" id="em-p1" title="Trocar monstro">👾</span>
-      <div class="score-label">Jogador 1</div>
+      <div class="score-label" id="lbl-p1">Jogador 1</div>
       <div class="score-val" id="sc-p1">0</div>
     </div>
     <div class="score-card draws-card">
@@ -1083,14 +1083,16 @@ function showThinking(on) {
 }
 
 function updateCards() {
-  document.getElementById('card-p1').classList.toggle('active',G.cur===1);
-  document.getElementById('card-p2').classList.toggle('active',G.cur===2);
+  const swap = G.mode === 'online' && G.onlineRole === 2;
+  document.getElementById('card-p1').classList.toggle('active', swap ? G.cur===2 : G.cur===1);
+  document.getElementById('card-p2').classList.toggle('active', swap ? G.cur===1 : G.cur===2);
 }
 
 function syncScores() {
-  document.getElementById('sc-p1').textContent=G.scores.p1;
-  document.getElementById('sc-dr').textContent=G.scores.dr;
-  document.getElementById('sc-p2').textContent=G.scores.p2;
+  const swap = G.mode === 'online' && G.onlineRole === 2;
+  document.getElementById('sc-p1').textContent = swap ? G.scores.p2 : G.scores.p1;
+  document.getElementById('sc-dr').textContent = G.scores.dr;
+  document.getElementById('sc-p2').textContent = swap ? G.scores.p1 : G.scores.p2;
 }
 
 function setMode(m) {
@@ -1113,7 +1115,10 @@ function exitGame() {
   document.getElementById('v-overlay').classList.add('hidden');
   stopParticles();
   document.getElementById('diff-row').classList.add('hidden');
+  document.getElementById('lbl-p1').textContent = 'Jogador 1';
   document.getElementById('lbl-p2').textContent = 'Jogador 2';
+  document.getElementById('em-p1').style.cursor = 'pointer';
+  document.getElementById('em-p1').title = 'Trocar monstro';
   document.getElementById('em-p2').style.cursor = 'pointer';
   document.getElementById('em-p2').title = 'Trocar monstro';
   document.getElementById('mode-modal').classList.remove('hidden');
@@ -1477,11 +1482,27 @@ function startOnlineGame(role) {
   G.onlineRole = role;
   G.mode = 'online';
   G.scores = {p1:0, dr:0, p2:0};
-  syncScores();
-  document.getElementById('lbl-p2').textContent = 'Oponente';
+
+  if (role === 1) {
+    // Host é P1: card esquerdo = Você, card direito = Oponente
+    document.getElementById('lbl-p1').textContent = 'Você';
+    document.getElementById('lbl-p2').textContent = 'Oponente';
+    document.getElementById('em-p1').textContent = G.p[1].em;
+    document.getElementById('em-p2').textContent = G.p[2].em;
+  } else {
+    // Guest é P2: card esquerdo = Você (mostra P2), card direito = Oponente (mostra P1)
+    document.getElementById('lbl-p1').textContent = 'Você';
+    document.getElementById('lbl-p2').textContent = 'Oponente';
+    document.getElementById('em-p1').textContent = G.p[2].em; // seu emoji na esquerda
+    document.getElementById('em-p2').textContent = G.p[1].em; // emoji do oponente na direita
+  }
+
+  document.getElementById('em-p1').style.cursor = 'default';
+  document.getElementById('em-p1').title = '';
   document.getElementById('em-p2').style.cursor = 'default';
   document.getElementById('em-p2').title = '';
   document.getElementById('diff-row').classList.add('hidden');
+  syncScores();
   doNextRound();
 }
 
